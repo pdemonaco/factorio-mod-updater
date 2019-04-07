@@ -1,0 +1,245 @@
+#!/usr/bin/python3
+"""
+This module provides a simple method to manage updating and installing mods
+on a given factorio server.
+
+It is currently not intended to be imported and instead should be executed
+directly as a python script.
+"""
+import argparse
+import glob
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+
+class ModUpdater():
+    """
+    Internal class managing the current version and state of the mods on this
+    server.
+    """
+    def __init__(self, settings_path: str, mod_path: str, fact_path: str):
+        """
+        Initialize the updater class with all mandatory and optional arguments.
+
+        Keyword arguments:
+        settings_path -- absolute path to the server-settings.json file
+        mod_path      -- absolute path to the factorio mod directory
+        fact_ver      -- local factorio version
+        """
+        self.mod_server_url = 'https://mods.factorio.com'
+        self.mod_path = mod_path
+        self._determine_version(fact_path)
+        self._parse_mod_list()
+        self._retrieve_mod_metadata()
+
+        # Get the credentials to download mods
+        if settings_path is not None:
+            self._parse_settings(settings_path)
+
+        self.username = None
+        self.token = None
+
+    def _determine_version(self, fact_path: str):
+        """Determine the local factorio version"""
+        if not os.path.exists(fact_path):
+            print('error: factorio binary \'{fact_path}\' does not exist!')
+            sys.exit(1)
+
+        try:
+            output = subprocess.check_output(
+                [fact_path, '--version'],
+                universal_newlines=True)
+            ver_re = re.compile(r'Version: (\d+)[.](\d+)[.](\d+) .*\n',
+                                re.RegexFlag.M)
+            match = ver_re.match(output)
+            if match:
+                version = {}
+                version['major'] = match.group(1)
+                version['minor'] = match.group(2)
+                version['patch'] = match.group(3)
+                version['release'] = '{}.{}'.format(
+                    version['major'],
+                    version['minor'])
+                self.fact_version = version
+            else:
+                print('Unable to parse version from:\n{output}'.format(
+                    output=output))
+                sys.exit('1')
+
+        except subprocess.CalledProcessError as error:
+            errmsg = (
+                'error: failed to run  \'{fpath} --version\': '
+                '{errstr}').format(fpath=fact_path, errstr=error.stderr)
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
+    def _parse_settings(self, settings_path: str):
+        """Process the specified server-settings.json file."""
+        try:
+            with open(settings_path, 'r') as settings_fp:
+                self.settings = json.load(settings_fp)
+        except IOError as error:
+            errmsg = (
+                'error: failed to open file \'{fname}\': '
+                '{errstr}').format(fname=settings_path, errstr=error.strerror)
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+        except json.JSONDecodeError as error:
+            errmsg = (
+                'error: failed to parse json file \'{fname}\': '
+                '{errstr}').format(fname=settings_path, errstr=error.msg)
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
+    def _retrieve_mod_metadata(self):
+        """
+        Pull the latest metadata for each mod from the factorio server
+        See https://wiki.factorio.com/Mod_portal_API for details
+        """
+        for mod, data in self.mods.items():
+            mod_url = self.mod_server_url + '/api/mods/' + mod + '/full'
+            with urllib.request.urlopen(mod_url) as rsp:
+                with tempfile.NamedTemporaryFile() as tmp_file:
+                    shutil.copyfileobj(rsp, tmp_file)
+                    tmp_file.seek(0)
+                    data['metadata'] = json.load(tmp_file)
+
+            data['latest'] = data['metadata']['releases'][-1]
+
+    def _parse_mod_list(self):
+        """Process the mod-list.json within mod_path."""
+        mod_list_path = os.path.join(self.mod_path, 'mod-list.json')
+        try:
+            settings_fp = open(mod_list_path, 'r')
+            mod_json = json.load(settings_fp)
+            self.mods = {}
+            if 'mods' in mod_json:
+                for mod in mod_json['mods']:
+                    entry = {}
+                    entry['enabled'] = mod['enabled']
+                    self.mods[mod['name']] = entry
+            else:
+                print('Invalid mod-list.json file \
+                      \'{path}\'!'.format(path=mod_list_path),
+                      file=sys.stderr)
+                exit(1)
+
+            # Remove the 'base' mod as it's not relevant to this process
+            if 'base' in self.mods:
+                del self.mods['base']
+        except IOError as error:
+            errmsg = (
+                'error: failed to open file \'{fname}\': '
+                '{errstr}').format(fname=mod_list_path, errstr=error.strerror)
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+        except json.JSONDecodeError as error:
+            errmsg = (
+                'error: failed to parse json file \'{fname}\': '
+                '{errstr}').format(fname=mod_list_path, errstr=error.msg)
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
+        # Collect the installed state & versions
+        mod_files = \
+            glob.glob('{mod_path}/*.zip'.format(mod_path=self.mod_path))
+        installed_mods = {}
+        mod_pattern = re.compile('^(.*)_(.*)[.]zip$')
+        for entry in mod_files:
+            basename = os.path.basename(entry)
+            match = mod_pattern.fullmatch(basename)
+            if match:
+                installed_mods[match.group(1)] = match.group(2)
+
+        for mod, data in self.mods.items():
+            if mod in installed_mods:
+                data['installed'] = True
+                data['version'] = installed_mods[mod]
+            else:
+                data['installed'] = False
+
+    def list(self):
+        """Lists the mods installed on this server."""
+        # Find the longest mod name
+        max_len = 0
+        for mod in self.mods:
+            mod_len = len(mod)
+            max_len = mod_len if mod_len > max_len else max_len
+
+        print('Version: {fact_version}\n'.format(
+            fact_version=self.fact_version['release']))
+
+        print('{:<{width}}\tenabled\tinstalled\tcurrent_v\tlatest_v'.format(
+            'mod_name',
+            width=max_len))
+        for mod, data in self.mods.items():
+            print('{:<{width}}\t{enbld}\t{inst}\t\t{cver}\t{lver}'.format(
+                mod,
+                enbld=str(data['enabled']),
+                inst=str(data['installed']),
+                cver=data['version'] if data['installed'] else 'N/A',
+                lver=data['latest']['version'],
+                width=max_len))
+
+    def override_credentials(self, username: str, token: str):
+        """Replaces the values provided in server-settings.json"""
+        if username is not None:
+            self.username = username
+        if token is not None:
+            self.token = token
+
+    def update(self):
+        """
+        Updates all mods currently installed on this server to the latest
+        release
+        """
+
+
+if __name__ == "__main__":
+    DESC_TEXT = 'Updates mods for a target factorio installation'
+    PARSER = argparse.ArgumentParser(description=DESC_TEXT)
+    # Username
+    PARSER.add_argument(
+        '-u',
+        '--username',
+        dest='username',
+        help='factorio.com username overriding server-settings.json')
+    # Token
+    PARSER.add_argument(
+        '-t',
+        '--token',
+        dest='token',
+        help='factorio.com API token overriding server-settings.json')
+    # Server Settings
+    PARSER.add_argument(
+        '-s',
+        '--server-settings',
+        dest='settings_path',
+        required=True,
+        help='Absolute path to the server-settings.json file')
+    # Factorio mod directory
+    PARSER.add_argument(
+        '-m',
+        '--mod-directory',
+        dest='mod_path',
+        required=True,
+        help='Absolute path to the mod directory')
+    # Factorio binary absolute path
+    PARSER.add_argument(
+        '--fact-path',
+        dest='fact_path',
+        required=True,
+        help='Absolute path to the factorio binary')
+    ARGS = PARSER.parse_args()
+    UPDATER = ModUpdater(
+        settings_path=ARGS.settings_path,
+        mod_path=ARGS.mod_path,
+        fact_path=ARGS.fact_path)
+
+    UPDATER.list()
