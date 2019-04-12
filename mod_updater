@@ -11,11 +11,11 @@ import glob
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
-import urllib.request
+
+# External URL processing library
+import requests
 
 
 class ModUpdater():
@@ -104,13 +104,23 @@ class ModUpdater():
         """
         for mod, data in self.mods.items():
             mod_url = self.mod_server_url + '/api/mods/' + mod + '/full'
-            with urllib.request.urlopen(mod_url) as rsp:
-                with tempfile.NamedTemporaryFile() as tmp_file:
-                    shutil.copyfileobj(rsp, tmp_file)
-                    tmp_file.seek(0)
-                    data['metadata'] = json.load(tmp_file)
+            with requests.get(mod_url) as req:
+                if not req.status_code == 200:
+                    warnmsg = (
+                        "{mod}: Unable to retrieve metadata, skipping!".format(
+                            mod=mod))
+                    print(warnmsg)
+                    continue
+                data['metadata'] = req.json()
 
-            data['latest'] = data['metadata']['releases'][-1]
+            # Find the latest release for this version of factorio
+            matching_releases = []
+            for rel in data['metadata']['releases']:
+                rel_ver = rel['info_json']['factorio_version']
+                if rel_ver == self.fact_version['release']:
+                    matching_releases.append(rel)
+
+            data['latest'] = matching_releases[-1]
 
     def _parse_mod_list(self):
         """Process the mod-list.json within mod_path."""
@@ -172,19 +182,19 @@ class ModUpdater():
             mod_len = len(mod)
             max_len = mod_len if mod_len > max_len else max_len
 
-        print('Version: {fact_version}\n'.format(
-            fact_version=self.fact_version['release']))
+        print('Factorio Release: {release}\n'.format(
+            release=self.fact_version['release']))
 
         print('{:<{width}}\tenabled\tinstalled\tcurrent_v\tlatest_v'.format(
             'mod_name',
             width=max_len))
         for mod, data in self.mods.items():
-            print('{:<{width}}\t{enbld}\t{inst}\t\t{cver}\t{lver}'.format(
+            print('{:<{width}}\t{enbld}\t{inst}\t\t{cver}\t\t{lver}'.format(
                 mod,
                 enbld=str(data['enabled']),
                 inst=str(data['installed']),
                 cver=data['version'] if data['installed'] else 'N/A',
-                lver=data['latest']['version'],
+                lver=data['latest']['version'] if 'latest' in data else 'N/A',
                 width=max_len))
 
     def override_credentials(self, username: str, token: str):
@@ -198,6 +208,13 @@ class ModUpdater():
         """
         Updates all mods currently installed on this server to the latest
         release
+        """
+
+    def _download_latest_release(self, mod):
+        """
+        Does the following
+        * Retrieves the latest version matching the factorio release
+        * Deletes any older versions found in the mod directory
         """
 
 
