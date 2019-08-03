@@ -1,4 +1,4 @@
-This module will automatically update all mods installed for a given instance of Factorio. Much like the original ruby script on which this module is based there are no external dependencies aside from Python itself.
+This module will automatically update all mods installed for a given instance of Factorio.
 
 Note that this is primarily intended for headless dedicated Linux servers.
 
@@ -27,7 +27,11 @@ Note that this is primarily intended for headless dedicated Linux servers.
     # Shouldn't be necessary since you'll have python for portage
     emerge -vt python
     ```
-2. [Install requests](http://docs.python-requests.org/en/master/user/install/#install) as described in their documentation.
+2. [Install requests](http://docs.python-requests.org/en/master/user/install/#install) as described in their documentation. Or, on gentoo:
+
+    ```bash
+    emerge -vt dev-python/requests
+    ```
 3. Download the latest release and you should be good to go.
 
 ## Usage
