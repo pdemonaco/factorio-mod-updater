@@ -40,7 +40,7 @@ Two modes are supported:
 Here's a brief example of executing the command:
 
 ```bash
-./mod_updater.py -s /opt/factorio/server-settings.json -m /opt/factorio/mods --fact-path /opt/factorio/bin/x64/factorio --update
+./mod_updater.py -s /opt/factorio/data/server-settings.json -m /opt/factorio/mods --fact-path /opt/factorio/bin/x64/factorio --update
 ```
 
 ## See Also
