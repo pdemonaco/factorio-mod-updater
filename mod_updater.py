@@ -189,7 +189,9 @@ class ModUpdater():
                 if rel_ver == self.fact_version['release']:
                     matching_releases.append(rel)
 
-            data['latest'] = matching_releases[-1]
+            if len(matching_releases) > 0:
+                data['latest'] = matching_releases[-1]
+
             print('.', end='', flush=True)
         print('complete!')
 
@@ -285,14 +287,22 @@ class ModUpdater():
         release
         """
         for mod, data in self.mods.items():
-            if 'latest' not in data:
+            if 'metadata' not in data:
                 warnmsg = (
                     "{mod}: Missing metadata, skipping update!".format(
                         mod=mod))
                 print(warnmsg)
-            else:
-                self._prune_old_releases(mod)
-                self._download_latest_release(mod)
+                continue
+            elif 'latest' not in data:
+                warnmsg = (
+                    "{mod}: No release found for factorio '{version}"
+                    "', skipping update!"
+                    ).format(mod=mod, version=self.fact_version['release'])
+                print(warnmsg)
+                continue
+
+            self._prune_old_releases(mod)
+            self._download_latest_release(mod)
 
     def _prune_old_releases(self, mod: str):
         """
