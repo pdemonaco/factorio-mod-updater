@@ -7,6 +7,7 @@ It is currently not intended to be imported and instead should be executed
 directly as a python script.
 """
 import argparse
+from datetime import datetime
 from enum import Enum, auto
 import glob
 import hashlib
@@ -66,6 +67,7 @@ class ModUpdater():
         """
         self.mod_server_url = 'https://mods.factorio.com'
         self.mod_path = mod_path
+        self.timestamp = datetime.utcnow()
 
         # Get the credentials to download mods
         if settings_path is not None:
@@ -106,7 +108,7 @@ class ModUpdater():
         # Begin processing
         self._determine_version(fact_path)
         self._parse_mod_list()
-        self._retrieve_mod_metadata()
+        self._retrieve_metadata()
 
     def _determine_version(self, fact_path: str):
         """Determine the local factorio version"""
@@ -169,20 +171,60 @@ class ModUpdater():
             print(errmsg, file=sys.stderr)
             sys.exit(1)
 
-    def _retrieve_mod_metadata(self):
+    def _retrieve_metadata(self):
         """
         Pull the latest metadata for each mod from the factorio server
         See https://wiki.factorio.com/Mod_portal_API for details
         """
         print("Retrieving metadata", end='')
         for mod, data in self.mods.items():
-            mod_url = self.mod_server_url + '/api/mods/' + mod + '/full'
-            with requests.get(mod_url) as req:
-                if not req.status_code == 200:
-                    continue
+            self._retrieve_mod_metadata(mod)
+            print('.', end='', flush=True)
+        print('complete!')
+
+        # Add missing dependencies to the overall list
+        while True:
+            missing_mods = []
+            for mod, data in self.mods.items():
+                if 'missing_deps' in data:
+                    missing_mods.extend(data['missing_deps'])
+
+            unique_missing = set(missing_mods)
+            for mod in self.mods.keys():
+                if mod in unique_missing:
+                    unique_missing.remove(mod)
+            if len(unique_missing) == 0:
+                break
+            for mod in unique_missing:
+                entry = {}
+                entry['enabled'] = True
+                entry['installed'] = False
+                self.mods[mod] = entry
+                self._retrieve_mod_metadata(mod)
+                print("Info: adding missing dependency {dep}".format(
+                    dep=mod
+                    ))
+
+        for mod, data in self.mods.items():
+            if 'metadata' not in data:
+                warnmsg = (
+                    "Warning: Unable to retrieve metadata for"
+                    " {mod}, skipped!".format(mod=mod))
+                print(warnmsg)
+
+    def _retrieve_mod_metadata(self, mod: str):
+        """
+        Attempts to retrieve the metadata for the target mod. If found, the
+        data object is updated with the 'metadata' key and the 'latest' keys.
+        """
+        data = self.mods[mod]
+        mod_url = self.mod_server_url + '/api/mods/' + mod + '/full'
+        with requests.get(mod_url) as req:
+            if req.status_code == 200:
                 data['metadata'] = req.json()
 
-            # Find the latest release for this version of factorio
+        if 'metadata' in data:
+            # Find the latest release for this version of Factorio
             matching_releases = []
             for rel in data['metadata']['releases']:
                 rel_ver = rel['info_json']['factorio_version']
@@ -192,15 +234,36 @@ class ModUpdater():
             if len(matching_releases) > 0:
                 data['latest'] = matching_releases[-1]
 
-            print('.', end='', flush=True)
-        print('complete!')
+        if 'latest' in data:
+            self._resolve_dependencies(mod)
 
-        for mod, data in self.mods.items():
-            if 'metadata' not in data:
-                warnmsg = (
-                    "Warning: Unable to retrieve metadata for"
-                    " {mod}, skipped!".format(mod=mod))
-                print(warnmsg)
+    def _resolve_dependencies(self, mod: str):
+        """
+        Processes the dependency list for this mod and returns an array
+        listing those which are not currently enabled. Note that this skips
+        exclusions and optional dependencies. (! and ?)
+        """
+        data = self.mods[mod]
+        if 'latest' in data:
+            data['missing_deps'] = []
+            data['dependencies'] = {}
+            dependencies = data['latest']['info_json']['dependencies']
+            # Preparation for future explicit version matching
+            dep_pattern = re.compile('^([\w -]+) ([<=>][=])? (\d+[.]\d+[.]\d+)$')
+            for dep_entry in dependencies:
+                match = dep_pattern.fullmatch(dep_entry)
+                if match:
+                    dep = {}
+                    dep_name = match.group(1)
+                    if dep_name == 'base':
+                        continue
+                    dep['argument'] = match.group(2)
+                    dep['version'] = match.group(3)
+                    data['dependencies'][match.group(1)] = dep
+
+            for dep_name, dep_data in data['dependencies'].items():
+                if dep_name not in self.mods:
+                    data['missing_deps'].append(dep_name)
 
     def _parse_mod_list(self):
         """Process the mod-list.json within mod_path."""
@@ -254,6 +317,62 @@ class ModUpdater():
             else:
                 data['installed'] = False
 
+    def _update_mod_list(self):
+        """
+        Generates an updated mod-list.json file which takes into account any
+        newly added dependencies.
+        """
+        # Build the simplified object for json output
+        mod_list_output = {}
+        mod_list_output['mods'] = []
+        for mod, data in self.mods.items():
+            mod_entry = {}
+            mod_entry['name'] = mod
+            mod_entry['enabled'] = True
+            mod_list_output['mods'].append(mod_entry)
+
+        # Rename the old mod-list file with a timestamp
+        mod_list_path = os.path.join(self.mod_path, 'mod-list.json')
+        mod_list_backup_path = os.path.join(self.mod_path,
+                "mod-list.{timestamp}.json".format(
+                    timestamp = self.timestamp.strftime("%Y-%m-%d_%H%M.%S")
+                    ))
+        try:
+            os.rename(
+                    src = mod_list_path,
+                    dst = mod_list_backup_path
+                    )
+        except IOError as error:
+            errmsg = (
+                'error: failed to rename file \'{s}\' to \'{d}\': '
+                '{errstr}').format(
+                        s=mod_list_path,
+                        d=mod_list_backup_path,
+                        errstr=error.strerror
+                        )
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
+        # Store the current mod list
+        try:
+            mod_list_fp = open(mod_list_path, 'w')
+            mod_list_fp.write(
+                    json.dumps(
+                        mod_list_output,
+                        indent=2,
+                        sort_keys=True
+                        )
+                    )
+        except IOError as error:
+            errmsg = (
+                'error: failed to store updated mod list file \'{s}\': '
+                '{errstr}').format(
+                        s=mod_list_path,
+                        errstr=error.strerror
+                        )
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
     def list(self):
         """Lists the mods installed on this server."""
         # Find the longest mod name
@@ -303,6 +422,9 @@ class ModUpdater():
 
             self._prune_old_releases(mod)
             self._download_latest_release(mod)
+
+        # Update the mod list file
+        self._update_mod_list()
 
     def _prune_old_releases(self, mod: str):
         """

@@ -7,6 +7,7 @@ Note that this is primarily intended for headless dedicated Linux servers.
 * Updates mods to the latest release based on mod-list.json
 * Removes all old versions of mods which are being updated
 * Limits releases to those compatible with the installed factorio version
+* Installs all required dependencies for the latest release of the currently enabled mods
 
 ## Installation
 
