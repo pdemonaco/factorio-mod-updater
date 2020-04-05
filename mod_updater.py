@@ -7,6 +7,7 @@ It is currently not intended to be imported and instead should be executed
 directly as a python script.
 """
 import argparse
+import datetime
 from enum import Enum, auto
 import glob
 import hashlib
@@ -66,6 +67,7 @@ class ModUpdater():
         """
         self.mod_server_url = 'https://mods.factorio.com'
         self.mod_path = mod_path
+        self.timestamp = datetime.utcnow()
 
         # Get the credentials to download mods
         if settings_path is not None:
@@ -254,6 +256,62 @@ class ModUpdater():
             else:
                 data['installed'] = False
 
+    def _update_mod_list(self):
+        """
+        Generates an updated mod-list.json file which takes into account any
+        newly added dependencies.
+        """
+        # Build the simplified object for json output
+        mod_list_output = {}
+        mod_list_output['mods'] = []
+        for mod, data in self.mods.items():
+            mod_entry = {}
+            mod_entry['name'] = mod
+            mod_entry['enabled'] = True
+            mod_list_output.append(mod_entry)
+
+        # Rename the old mod-list file with a timestamp
+        mod_list_path = os.path.join(self.mod_path, 'mod-list.json')
+        mod_list_backup_path = os.path.join(self.mod_path,
+                "mod-list.{timestamp}.json".format(
+                    timestamp = self.timestamp.strftime("%Y-%m-%d_%H%M.%S")
+                    ))
+        try:
+            os.rename(
+                    scr = mod_list_path,
+                    dest = mod_list_backup_path
+                    )
+        except IOError as error:
+            errmsg = (
+                'error: failed to rename file \'{s}\' to \'{d}\': '
+                '{errstr}').format(
+                        s=mod_list_path,
+                        d=mod_list_backup_path,
+                        errstr=error.strerror
+                        )
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
+        # Store the current mod list
+        try:
+            mod_list_fp = open(mod_list_path, 'w')
+            mod_list_fp.write(
+                    json.dumps(
+                        mod_list_output,
+                        indent=2,
+                        sort_keys=True
+                        )
+                    )
+        except IOError as error:
+            errmsg = (
+                'error: failed to store updated mod list file \'{s}\': '
+                '{errstr}').format(
+                        s=mod_list_path,
+                        errstr=error.strerror
+                        )
+            print(errmsg, file=sys.stderr)
+            sys.exit(1)
+
     def list(self):
         """Lists the mods installed on this server."""
         # Find the longest mod name
@@ -303,6 +361,9 @@ class ModUpdater():
 
             self._prune_old_releases(mod)
             self._download_latest_release(mod)
+
+        # Update the mod list file
+        self._update_mod_list()
 
     def _prune_old_releases(self, mod: str):
         """
