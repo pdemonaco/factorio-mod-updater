@@ -50,6 +50,9 @@ class ModUpdater():
     server.
     """
 
+    MOD_VERSION_PATTERN='\d+[.]\d+[.]\d+'
+    MOD_FILE_PATTERN='^(.*)_({version})[.]zip$'.format(version=MOD_VERSION_PATTERN)
+
     class Mode(Enum):
         """Possible execution modes"""
         LIST = auto()
@@ -303,7 +306,7 @@ class ModUpdater():
         self.mod_files = \
             glob.glob('{mod_path}/*.zip'.format(mod_path=self.mod_path))
         installed_mods = {}
-        mod_pattern = re.compile('^(.*)_(.*)[.]zip$')
+        mod_pattern = re.compile(self.MOD_FILE_PATTERN)
         for entry in self.mod_files:
             basename = os.path.basename(entry)
             match = mod_pattern.fullmatch(basename)
@@ -437,8 +440,9 @@ class ModUpdater():
         latest_version = data['latest']['version']
 
         # Declare the patterns
-        mod_pattern = re.compile('^{mod}_.*[.]zip$'.format(mod=mod))
-        version_pattern = re.compile('^{mod}_{ver}.zip$'.format(
+        mod_pattern = re.compile('^{mod}_{ver}[.]zip$'.format(
+            mod=mod, ver=self.MOD_VERSION_PATTERN))
+        version_pattern = re.compile('^{mod}_{ver}[.]zip$'.format(
             mod=mod, ver=latest_version))
 
         # Build the parse list
