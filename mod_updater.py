@@ -7,6 +7,7 @@ It is currently not intended to be imported and instead should be executed
 directly as a python script.
 """
 import argparse
+from collections import OrderedDict
 from datetime import datetime
 from enum import Enum, auto
 import glob
@@ -49,6 +50,9 @@ class ModUpdater():
     Internal class managing the current version and state of the mods on this
     server.
     """
+
+    MOD_VERSION_PATTERN='\d+[.]\d+[.]\d+'
+    MOD_FILE_PATTERN='^(.*)_({version})[.]zip$'.format(version=MOD_VERSION_PATTERN)
 
     class Mode(Enum):
         """Possible execution modes"""
@@ -109,6 +113,8 @@ class ModUpdater():
         self._determine_version(fact_path)
         self._parse_mod_list()
         self._retrieve_metadata()
+        self._determine_max_name_lengths()
+        self.mods = OrderedDict(sorted(self.mods.items()))
 
     def _determine_version(self, fact_path: str):
         """Determine the local factorio version"""
@@ -180,7 +186,7 @@ class ModUpdater():
         for mod, data in self.mods.items():
             self._retrieve_mod_metadata(mod)
             print('.', end='', flush=True)
-        print('complete!')
+        print('complete!\n')
 
         # Add missing dependencies to the overall list
         while True:
@@ -303,7 +309,7 @@ class ModUpdater():
         self.mod_files = \
             glob.glob('{mod_path}/*.zip'.format(mod_path=self.mod_path))
         installed_mods = {}
-        mod_pattern = re.compile('^(.*)_(.*)[.]zip$')
+        mod_pattern = re.compile(self.MOD_FILE_PATTERN)
         for entry in self.mod_files:
             basename = os.path.basename(entry)
             match = mod_pattern.fullmatch(basename)
@@ -373,17 +379,31 @@ class ModUpdater():
             print(errmsg, file=sys.stderr)
             sys.exit(1)
 
+    def _determine_max_name_lengths(self):
+        """Returns the length of the longest mod name"""
+        max_mod_len = 0
+        max_cver_len = 0
+        max_lver_len = 0
+        for mod, data in self.mods.items():
+            mod_len = len(mod)
+            max_mod_len = mod_len if mod_len > max_mod_len else max_mod_len
+            cver_len = len(data['version']) if data['installed'] else len('Version')
+            max_cver_len = cver_len if cver_len > max_cver_len else max_cver_len
+            lver_len = len(data['latest']['version']) if 'latest' in data else len('Version')
+            max_lver_len = lver_len if lver_len > max_lver_len else max_lver_len
+
+        self.max_mod_len = max_mod_len
+        self.max_cver_len = max_cver_len
+        self.max_lver_len = max_lver_len
+        self.max_ver_len = max_lver_len if max_lver_len > max_cver_len else max_cver_len
+
     def list(self):
         """Lists the mods installed on this server."""
         # Find the longest mod name
-        max_len = 0
-        for mod in self.mods:
-            mod_len = len(mod)
-            max_len = mod_len if mod_len > max_len else max_len
 
         print('{:<{width}}\tenabled\tinstalled\tcurrent_v\tlatest_v'.format(
             'mod_name',
-            width=max_len))
+            width=self.max_mod_len))
         for mod, data in self.mods.items():
             print('{:<{width}}\t{enbld}\t{inst}\t\t{cver}\t\t{lver}'.format(
                 mod,
@@ -391,7 +411,7 @@ class ModUpdater():
                 inst=str(data['installed']),
                 cver=data['version'] if data['installed'] else 'N/A',
                 lver=data['latest']['version'] if 'latest' in data else 'N/A',
-                width=max_len))
+                width=self.max_mod_len))
 
     def override_credentials(self, username: str, token: str):
         """Replaces the values provided in server-settings.json"""
@@ -400,24 +420,52 @@ class ModUpdater():
         if token is not None:
             self.token = token
 
+    def _print_mod_message(self, mod: str, version: str, action: str,
+            result: str, message: str):
+        """
+        Prints a mod status message using the provided parameters.
+        """
+
+        output_string = (
+                '{mod:<{mwidth}}\t{version:<{vwidth}}'
+                '\t{action:<10}\t{result:<10}\t{message}'
+                ).format(
+                        mod=mod,
+                        version=version,
+                        action=action,
+                        result=result,
+                        message=message,
+                        vwidth=self.max_ver_len,
+                        mwidth=self.max_mod_len)
+        print(output_string)
+
     def update(self):
         """
         Updates all mods currently installed on this server to the latest
         release
         """
+        self._print_mod_message('Mod','Version','Action','Result','Message')
+
         for mod, data in self.mods.items():
+            version = data['version'] if data['installed'] else "N/A"
             if 'metadata' not in data:
-                warnmsg = (
-                    "{mod}: Missing metadata, skipping update!".format(
-                        mod=mod))
-                print(warnmsg)
+                self._print_mod_message(
+                        mod=mod,
+                        version=version,
+                        action='skip',
+                        result='N/A',
+                        message='Missing metadata, skipping update!')
                 continue
             elif 'latest' not in data:
-                warnmsg = (
-                    "{mod}: No release found for factorio '{version}"
-                    "', skipping update!"
-                    ).format(mod=mod, version=self.fact_version['release'])
-                print(warnmsg)
+                message = ("No release found for factorio '{version}"
+                        "', skipping update!").format(
+                                version=self.fact_version['release'])
+                self._print_mod_message(
+                        mod=mod,
+                        version=version,
+                        action='skip',
+                        result='N/A',
+                        message=message)
                 continue
 
             self._prune_old_releases(mod)
@@ -437,8 +485,9 @@ class ModUpdater():
         latest_version = data['latest']['version']
 
         # Declare the patterns
-        mod_pattern = re.compile('^{mod}_.*[.]zip$'.format(mod=mod))
-        version_pattern = re.compile('^{mod}_{ver}.zip$'.format(
+        mod_pattern = re.compile('^{mod}_({ver})[.]zip$'.format(
+            mod=mod, ver=self.MOD_VERSION_PATTERN))
+        version_pattern = re.compile('^{mod}_{ver}[.]zip$'.format(
             mod=mod, ver=latest_version))
 
         # Build the parse list
@@ -448,19 +497,30 @@ class ModUpdater():
             if version_pattern.fullmatch(rel):
                 continue
 
-            print("{mod}: removing '{target}'".format(
-                mod=mod, target=rel))
+            match = mod_pattern.fullmatch(rel)
+            if match:
+                rel_ver = match.group(1)
+            else:
+                rel_ver = 'TBD'
 
             rel_path = os.path.join(self.mod_path, rel)
             try:
                 os.remove(rel_path)
+                result = 'Success'
+                message = ''
             except OSError as error:
-                errmsg = (
+                message = (
                     'error: failed to remove \'{fname}\': '
                     '{errstr}').format(fname=rel_path,
                                        errstr=error.strerror)
-                print(errmsg, file=sys.stderr)
-                sys.exit(1)
+                result='Failure'
+
+            self._print_mod_message(
+                    mod=mod,
+                    version=rel_ver,
+                    action='remove',
+                    result=result,
+                    message=message)
 
     def _download_latest_release(self, mod: str):
         """
@@ -480,24 +540,28 @@ class ModUpdater():
         v_new = latest['version']
         if data['installed']:
             if v_new == v_cur:
-                print("{mod}: validating installed '{version}'...".format(
-                    mod=mod, version=v_cur), end='')
                 validate = True
             else:
-                print("{mod}: updating from '{v_cur}' to '{v_new}'...".format(
-                    mod=mod, v_new=v_new, v_cur=v_cur), end='')
+                message = "Updating from '{v_cur}'".format(
+                        v_cur=v_cur)
                 download = True
         else:
-            print("{mod}: downloading version '{version}'...".format(
-                mod=mod, version=v_new), end='')
+            message = "Downloading initial release".format(
+                    version=v_new)
             download = True
 
         if validate:
             if _validate_hash(latest['sha1'], target):
-                print('Valid!')
+                result = 'Success'
             else:
-                print('Invalid! Downloading...', end='')
+                result = 'Failure'
                 download = True
+            self._print_mod_message(
+                    mod=mod,
+                    version=v_cur,
+                    action='Validate',
+                    result=result,
+                    message='')
 
         if download:
             creds = {'username': self.username, 'token': self.token}
@@ -508,16 +572,21 @@ class ModUpdater():
                         shutil.copyfileobj(req.raw, target_file)
                         target_file.flush()
                 else:
-                    warnmsg = (
-                        "Unable to retrieve, skipping!".format(
-                            mod=mod))
-                    print(warnmsg)
+                    message = 'Unable to retrieve, skipping!'
+                    result = 'Failure'
 
             if _validate_hash(latest['sha1'], target):
-                print('Complete!')
+                result = 'Success'
             else:
-                print('Download did not match checksum!')
+                result = 'Failure'
+                message = 'Download did not match checksum!'
 
+            self._print_mod_message(
+                    mod=mod,
+                    version=v_new,
+                    action='Download',
+                    result=result,
+                    message=message)
 
 if __name__ == "__main__":
     DESC_TEXT = 'Updates mods for a target factorio installation'
