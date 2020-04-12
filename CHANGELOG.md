@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.2](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.2) (2020-04-11)
+
+[Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.1...0.2.2)
+
+**Fixed bugs:**
+
+- fix: add missing message [\#10](https://github.com/pdemonaco/factorio-mod-updater/pull/10) ([pdemonaco](https://github.com/pdemonaco))
+
+**Closed issues:**
+
+- can't update again [\#9](https://github.com/pdemonaco/factorio-mod-updater/issues/9)
+
 ## [0.2.1](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.1) (2020-04-11)
 
 [Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.0...0.2.1)
