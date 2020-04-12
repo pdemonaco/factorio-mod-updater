@@ -518,7 +518,7 @@ class ModUpdater():
             self._print_mod_message(
                     mod=mod,
                     version=rel_ver,
-                    action='remove',
+                    action='Remove',
                     result=result,
                     message=message)
 
@@ -556,6 +556,7 @@ class ModUpdater():
             else:
                 result = 'Failure'
                 download = True
+                message = "Validation failed, downloading again"
             self._print_mod_message(
                     mod=mod,
                     version=v_cur,
