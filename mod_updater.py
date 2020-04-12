@@ -452,7 +452,7 @@ class ModUpdater():
                 self._print_mod_message(
                         mod=mod,
                         version=version,
-                        action='skip',
+                        action='Skip',
                         result='N/A',
                         message='Missing metadata, skipping update!')
                 continue
@@ -463,7 +463,7 @@ class ModUpdater():
                 self._print_mod_message(
                         mod=mod,
                         version=version,
-                        action='skip',
+                        action='Skip',
                         result='N/A',
                         message=message)
                 continue
