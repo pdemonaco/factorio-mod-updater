@@ -572,15 +572,17 @@ class ModUpdater():
                     with open(target, 'wb') as target_file:
                         shutil.copyfileobj(req.raw, target_file)
                         target_file.flush()
-                else:
-                    message = 'Unable to retrieve, skipping!'
+                    if _validate_hash(latest['sha1'], target):
+                        result = 'Success'
+                    else:
+                        result = 'Failure'
+                        message = 'Download did not match checksum!'
+                elif req.status_code == 403:
+                    message = 'Failed to download, credentials not accepted. Check your username/token'
                     result = 'Failure'
-
-            if _validate_hash(latest['sha1'], target):
-                result = 'Success'
-            else:
-                result = 'Failure'
-                message = 'Download did not match checksum!'
+                else:
+                    message = 'Unable to retrieve, status code: ' + str(req.status_code)
+                    result = 'Failure'
 
             self._print_mod_message(
                     mod=mod,
