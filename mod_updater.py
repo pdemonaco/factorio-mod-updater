@@ -334,7 +334,7 @@ class ModUpdater():
         for mod, data in self.mods.items():
             mod_entry = {}
             mod_entry['name'] = mod
-            mod_entry['enabled'] = True
+            mod_entry['enabled'] = data['enabled']
             mod_list_output['mods'].append(mod_entry)
 
         # Rename the old mod-list file with a timestamp
