@@ -28,7 +28,7 @@ Note that this is primarily intended for headless dedicated Linux servers.
     # Shouldn't be necessary since you'll have python for portage
     emerge -vt python
     ```
-2. [Install requests](http://docs.python-requests.org/en/master/user/install/#install) as described in their documentation. Or, on gentoo:
+2. [Install requests](https://requests.readthedocs.io/en/master/user/install/#install) as described in their documentation. Or, on gentoo:
 
     ```bash
     emerge -vt dev-python/requests
