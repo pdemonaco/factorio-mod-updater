@@ -45,6 +45,13 @@ def _validate_hash(checksum: str, target: str,
     return hasher.hexdigest() == checksum
 
 
+def _version_match(installed: str, mod: str):
+    """Checks if factorio versions are compatible."""
+    if installed == '1.0' and mod == '0.18':
+        return True
+    return installed == mod
+
+
 class ModUpdater():
     """
     Internal class managing the current version and state of the mods on this
@@ -114,7 +121,10 @@ class ModUpdater():
         self._parse_mod_list()
         self._retrieve_metadata()
         self._determine_max_name_lengths()
-        self.mods = OrderedDict(sorted(self.mods.items()))
+        self.mods = OrderedDict(sorted(
+            self.mods.items(),
+            key=lambda mod: mod[1]['title'])
+            )
 
     def _determine_version(self, fact_path: str):
         """Determine the local factorio version"""
@@ -234,11 +244,16 @@ class ModUpdater():
             matching_releases = []
             for rel in data['metadata']['releases']:
                 rel_ver = rel['info_json']['factorio_version']
-                if rel_ver == self.fact_version['release']:
+                if _version_match(installed=self.fact_version['release'], mod=rel_ver):
                     matching_releases.append(rel)
 
             if len(matching_releases) > 0:
                 data['latest'] = matching_releases[-1]
+
+            # Add title key
+            data['title'] = data['metadata']['title']
+        else:
+            data['title'] = mod
 
         if 'latest' in data:
             self._resolve_dependencies(mod)
@@ -385,7 +400,7 @@ class ModUpdater():
         max_cver_len = 0
         max_lver_len = 0
         for mod, data in self.mods.items():
-            mod_len = len(mod)
+            mod_len = len(data['title'])
             max_mod_len = mod_len if mod_len > max_mod_len else max_mod_len
             cver_len = len(data['version']) if data['installed'] else len('Version')
             max_cver_len = cver_len if cver_len > max_cver_len else max_cver_len
@@ -516,7 +531,7 @@ class ModUpdater():
                 result='Failure'
 
             self._print_mod_message(
-                    mod=mod,
+                    mod=data['title'],
                     version=rel_ver,
                     action='Remove',
                     result=result,
@@ -558,7 +573,7 @@ class ModUpdater():
                 download = True
                 message = "Validation failed, downloading again"
             self._print_mod_message(
-                    mod=mod,
+                    mod=data['title'],
                     version=v_cur,
                     action='Validate',
                     result=result,
@@ -585,7 +600,7 @@ class ModUpdater():
                     result = 'Failure'
 
             self._print_mod_message(
-                    mod=mod,
+                    mod=data['title'],
                     version=v_new,
                     action='Download',
                     result=result,
