@@ -1,16 +1,33 @@
 # Changelog
 
-## [0.2.2](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.2) (2020-04-11)
+## [0.2.3](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.3) (2020-09-05)
+
+[Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.2...0.2.3)
+
+**Closed issues:**
+
+- 0.18 mods are compatible with 1.0, but they won't download through updater. [\#16](https://github.com/pdemonaco/factorio-mod-updater/issues/16)
+- Automatically enables all mods, including disabled ones [\#13](https://github.com/pdemonaco/factorio-mod-updater/issues/13)
+
+**Merged pull requests:**
+
+- feat: make title output optional [\#18](https://github.com/pdemonaco/factorio-mod-updater/pull/18) ([pdemonaco](https://github.com/pdemonaco))
+- Display title instead of internal name, allow 0.18 mods on 1.0 [\#15](https://github.com/pdemonaco/factorio-mod-updater/pull/15) ([clarfonthey](https://github.com/clarfonthey))
+- fix: enable/disable status from mod-list.json should persist  [\#14](https://github.com/pdemonaco/factorio-mod-updater/pull/14) ([clarfonthey](https://github.com/clarfonthey))
+- fix: "Install requests" URL in README [\#12](https://github.com/pdemonaco/factorio-mod-updater/pull/12) ([jessedc](https://github.com/jessedc))
+- Enhancement: Some additional information in mod-download failure cases [\#11](https://github.com/pdemonaco/factorio-mod-updater/pull/11) ([jylee4](https://github.com/jylee4))
+
+## [0.2.2](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.2) (2020-04-12)
 
 [Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.1...0.2.2)
 
 **Fixed bugs:**
 
-- fix: add missing message [\#10](https://github.com/pdemonaco/factorio-mod-updater/pull/10) ([pdemonaco](https://github.com/pdemonaco))
-
-**Closed issues:**
-
 - can't update again [\#9](https://github.com/pdemonaco/factorio-mod-updater/issues/9)
+
+**Merged pull requests:**
+
+- fix: add missing message [\#10](https://github.com/pdemonaco/factorio-mod-updater/pull/10) ([pdemonaco](https://github.com/pdemonaco))
 
 ## [0.2.1](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.1) (2020-04-11)
 
