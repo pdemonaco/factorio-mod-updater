@@ -67,7 +67,7 @@ class ModUpdater():
         UPDATE = auto()
 
     def __init__(self, settings_path: str, mod_path: str, fact_path: str,
-                 creds: hash):
+            creds: hash, title_mode: bool):
         """
         Initialize the updater class with all mandatory and optional arguments.
 
@@ -79,6 +79,7 @@ class ModUpdater():
         self.mod_server_url = 'https://mods.factorio.com'
         self.mod_path = mod_path
         self.timestamp = datetime.utcnow()
+        self.title_mode = title_mode
 
         # Get the credentials to download mods
         if settings_path is not None:
@@ -121,10 +122,15 @@ class ModUpdater():
         self._parse_mod_list()
         self._retrieve_metadata()
         self._determine_max_name_lengths()
-        self.mods = OrderedDict(sorted(
-            self.mods.items(),
-            key=lambda mod: mod[1]['title'])
-            )
+        if self.title_mode:
+            self.mods = OrderedDict(
+                    sorted(
+                        self.mods.items(),
+                        key=lambda mod: mod[1]['title']
+                    )
+                )
+        else:
+            self.mods = OrderedDict(sorted(self.mods.items()))
 
     def _determine_version(self, fact_path: str):
         """Determine the local factorio version"""
@@ -400,7 +406,7 @@ class ModUpdater():
         max_cver_len = 0
         max_lver_len = 0
         for mod, data in self.mods.items():
-            mod_len = len(data['title'])
+            mod_len = len(data['title']) if self.title_mode else len(mod)
             max_mod_len = mod_len if mod_len > max_mod_len else max_mod_len
             cver_len = len(data['version']) if data['installed'] else len('Version')
             max_cver_len = cver_len if cver_len > max_cver_len else max_cver_len
@@ -436,16 +442,20 @@ class ModUpdater():
             self.token = token
 
     def _print_mod_message(self, mod: str, version: str, action: str,
-            result: str, message: str):
+            result: str, message: str, data: hash):
         """
         Prints a mod status message using the provided parameters.
         """
+        if data is not None:
+            title = data['title'] if self.title_mode else mod
+        else:
+            title = mod
 
         output_string = (
-                '{mod:<{mwidth}}\t{version:<{vwidth}}'
+                '{title:<{mwidth}}\t{version:<{vwidth}}'
                 '\t{action:<10}\t{result:<10}\t{message}'
                 ).format(
-                        mod=mod,
+                        title=title,
                         version=version,
                         action=action,
                         result=result,
@@ -459,7 +469,7 @@ class ModUpdater():
         Updates all mods currently installed on this server to the latest
         release
         """
-        self._print_mod_message('Mod','Version','Action','Result','Message')
+        self._print_mod_message('Mod','Version','Action','Result','Message',None)
 
         for mod, data in self.mods.items():
             version = data['version'] if data['installed'] else "N/A"
@@ -469,7 +479,8 @@ class ModUpdater():
                         version=version,
                         action='Skip',
                         result='N/A',
-                        message='Missing metadata, skipping update!')
+                        message='Missing metadata, skipping update!',
+                        data=data)
                 continue
             elif 'latest' not in data:
                 message = ("No release found for factorio '{version}"
@@ -480,7 +491,8 @@ class ModUpdater():
                         version=version,
                         action='Skip',
                         result='N/A',
-                        message=message)
+                        message=message,
+                        data=data)
                 continue
 
             self._prune_old_releases(mod)
@@ -531,11 +543,12 @@ class ModUpdater():
                 result='Failure'
 
             self._print_mod_message(
-                    mod=data['title'],
+                    mod=mod,
                     version=rel_ver,
                     action='Remove',
                     result=result,
-                    message=message)
+                    message=message,
+                    data=data)
 
     def _download_latest_release(self, mod: str):
         """
@@ -573,11 +586,12 @@ class ModUpdater():
                 download = True
                 message = "Validation failed, downloading again"
             self._print_mod_message(
-                    mod=data['title'],
+                    mod=mod,
                     version=v_cur,
                     action='Validate',
                     result=result,
-                    message='')
+                    message='',
+                    data=data)
 
         if download:
             creds = {'username': self.username, 'token': self.token}
@@ -600,11 +614,12 @@ class ModUpdater():
                     result = 'Failure'
 
             self._print_mod_message(
-                    mod=data['title'],
+                    mod=mod,
                     version=v_new,
                     action='Download',
                     result=result,
-                    message=message)
+                    message=message,
+                    data=data)
 
 if __name__ == "__main__":
     DESC_TEXT = 'Updates mods for a target factorio installation'
@@ -621,6 +636,13 @@ if __name__ == "__main__":
         '--token',
         dest='token',
         help='factorio.com API token overriding server-settings.json')
+    # Title format
+    PARSER.add_argument(
+        '--print-titles',
+        dest='title_mode',
+        default=False,
+        action='store_true',
+        help='When true, print the mod title instead of the api name')
     # Server Settings
     PARSER.add_argument(
         '-s',
@@ -661,7 +683,8 @@ if __name__ == "__main__":
         settings_path=ARGS.settings_path,
         mod_path=ARGS.mod_path,
         fact_path=ARGS.fact_path,
-        creds={'username': ARGS.username, 'token': ARGS.token})
+        creds={'username': ARGS.username, 'token': ARGS.token},
+        title_mode=ARGS.title_mode)
 
     if ARGS.mode == ModUpdater.Mode.LIST:
         UPDATER.list()
