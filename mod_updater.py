@@ -9,7 +9,7 @@ directly as a python script.
 import argparse
 from collections import OrderedDict
 from datetime import datetime
-from enum import Enum, auto
+from enum import Enum
 import glob
 import hashlib
 import json
@@ -63,8 +63,8 @@ class ModUpdater():
 
     class Mode(Enum):
         """Possible execution modes"""
-        LIST = auto()
-        UPDATE = auto()
+        LIST = 'List'
+        UPDATE = 'Update'
 
     def __init__(self, settings_path: str, mod_path: str, fact_path: str,
             creds: hash, title_mode: bool):
@@ -146,7 +146,7 @@ class ModUpdater():
                 [fact_path, '--version'],
                 universal_newlines=True)
             ver_re = re.compile(r'Version: (\d+)[.](\d+)[.](\d+) .*\n',
-                                re.RegexFlag.M)
+                                re.M)
             match = ver_re.match(output)
             if match:
                 version = {}
@@ -241,9 +241,9 @@ class ModUpdater():
         """
         data = self.mods[mod]
         mod_url = self.mod_server_url + '/api/mods/' + mod + '/full'
-        with requests.get(mod_url) as req:
-            if req.status_code == 200:
-                data['metadata'] = req.json()
+        req = requests.get(mod_url)
+        if req.status_code == 200:
+            data['metadata'] = req.json()
 
         if 'metadata' in data:
             # Find the latest release for this version of Factorio
@@ -596,22 +596,22 @@ class ModUpdater():
         if download:
             creds = {'username': self.username, 'token': self.token}
             dl_url = self.mod_server_url + latest['download_url']
-            with requests.get(dl_url, params=creds, stream=True) as req:
-                if req.status_code == 200:
-                    with open(target, 'wb') as target_file:
-                        shutil.copyfileobj(req.raw, target_file)
-                        target_file.flush()
-                    if _validate_hash(latest['sha1'], target):
-                        result = 'Success'
-                    else:
-                        result = 'Failure'
-                        message = 'Download did not match checksum!'
-                elif req.status_code == 403:
-                    message = 'Failed to download, credentials not accepted. Check your username/token'
-                    result = 'Failure'
+            req = requests.get(dl_url, params=creds, stream=True)
+            if req.status_code == 200:
+                with open(target, 'wb') as target_file:
+                    shutil.copyfileobj(req.raw, target_file)
+                    target_file.flush()
+                if _validate_hash(latest['sha1'], target):
+                    result = 'Success'
                 else:
-                    message = 'Unable to retrieve, status code: ' + str(req.status_code)
                     result = 'Failure'
+                    message = 'Download did not match checksum!'
+            elif req.status_code == 403:
+                message = 'Failed to download, credentials not accepted. Check your username/token'
+                result = 'Failure'
+            else:
+                message = 'Unable to retrieve, status code: ' + str(req.status_code)
+                result = 'Failure'
 
             self._print_mod_message(
                     mod=mod,
