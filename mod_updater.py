@@ -69,6 +69,7 @@ class ModUpdater:
     def __init__(
         self,
         settings_path: str,
+        data_path: str,
         mod_path: str,
         fact_path: str,
         creds: hash,
@@ -89,13 +90,21 @@ class ModUpdater:
 
         # Get the credentials to download mods
         if settings_path is not None:
-            self._parse_settings(settings_path)
+            self.settings = self._parse_settings(settings_path)
+        else:
+            self.settings = {}
+        if data_path is not None:
+            self.data = self._parse_settings(data_path)
+        else:
+            self.data = {}
 
         # Parse username and token
         if "username" in creds and creds["username"] is not None:
             self.username = creds["username"]
         elif "username" in self.settings:
             self.username = self.settings["username"]
+        elif "service-username" in self.data:
+            self.username = self.data["service-username"]
         else:
             self.token = None
 
@@ -103,6 +112,8 @@ class ModUpdater:
             self.token = creds["token"]
         elif "token" in self.settings:
             self.token = self.settings["token"]
+        elif "service-token" in self.data:
+            self.token = self.data["service-token"]
         else:
             self.token = None
 
@@ -167,20 +178,20 @@ class ModUpdater:
             "Factorio Release: {release}\n".format(release=self.fact_version["release"])
         )
 
-    def _parse_settings(self, settings_path: str):
-        """Process the specified server-settings.json file."""
+    def _parse_settings(self, config_path: str):
+        """Process the specified server-settings.json or player-data.json file."""
         try:
-            with open(settings_path, "r") as settings_fp:
-                self.settings = json.load(settings_fp)
+            with open(config_path, "r") as config_fp:
+                return json.load(config_fp)
         except IOError as error:
             errmsg = ("error: failed to open file '{fname}': " "{errstr}").format(
-                fname=settings_path, errstr=error.strerror
+                fname=config_path, errstr=error.strerror
             )
             print(errmsg, file=sys.stderr)
             sys.exit(1)
         except json.JSONDecodeError as error:
             errmsg = ("error: failed to parse json file '{fname}': " "{errstr}").format(
-                fname=settings_path, errstr=error.msg
+                fname=config_path, errstr=error.msg
             )
             print(errmsg, file=sys.stderr)
             sys.exit(1)
@@ -422,7 +433,7 @@ class ModUpdater:
             )
 
     def override_credentials(self, username: str, token: str):
-        """Replaces the values provided in server-settings.json"""
+        """Replaces the values provided in server-settings.json or player-data.json"""
         if username is not None:
             self.username = username
         if token is not None:
@@ -474,7 +485,7 @@ class ModUpdater:
                 continue
             elif "latest" not in data:
                 message = (
-                    "No release found for factorio '{version}" "', skipping update!"
+                    "No release found for factorio '{version}', skipping update!"
                 ).format(version=self.fact_version["release"])
                 self._print_mod_message(
                     mod=mod,
@@ -624,14 +635,14 @@ if __name__ == "__main__":
         "-u",
         "--username",
         dest="username",
-        help="factorio.com username overriding server-settings.json",
+        help="factorio.com username overriding server-settings.json/player-data.json",
     )
     # Token
     PARSER.add_argument(
         "-t",
         "--token",
         dest="token",
-        help="factorio.com API token overriding server-settings.json",
+        help="factorio.com API token overriding server-settings.json/player-data.json",
     )
     # Title format
     PARSER.add_argument(
@@ -646,8 +657,16 @@ if __name__ == "__main__":
         "-s",
         "--server-settings",
         dest="settings_path",
-        required=True,
-        help="Absolute path to the server-settings.json file",
+        required=False,
+        help="Absolute path to the server-settings.json file (overrides player-data.json)",
+    )
+    # Player Data
+    PARSER.add_argument(
+        "-d",
+        "--player-data",
+        dest="data_path",
+        required=False,
+        help="Absolute path to the player-data.json file",
     )
     # Factorio mod directory
     PARSER.add_argument(
@@ -684,6 +703,7 @@ if __name__ == "__main__":
     ARGS = PARSER.parse_args()
     UPDATER = ModUpdater(
         settings_path=ARGS.settings_path,
+        data_path=ARGS.data_path,
         mod_path=ARGS.mod_path,
         fact_path=ARGS.fact_path,
         creds={"username": ARGS.username, "token": ARGS.token},
