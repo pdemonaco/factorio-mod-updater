@@ -260,8 +260,14 @@ class ModUpdater:
 
             # Add title key
             data["title"] = data["metadata"]["title"]
+
+            # Mark whether it's deprecated
+            data["deprecated"] = data["metadata"].get("deprecated", False)
         else:
             data["title"] = mod
+
+            # Assume not deprecated if we can't find it
+            data["deprecated"] = False
 
         if "latest" in data:
             self._resolve_dependencies(mod)
@@ -583,6 +589,7 @@ class ModUpdater:
         if validate:
             if _validate_hash(latest["sha1"], target):
                 result = "Success"
+                message = "Deprecated mod" if data["deprecated"] else ""
             else:
                 result = "Failure"
                 download = True
@@ -592,7 +599,7 @@ class ModUpdater:
                 version=v_cur,
                 action="Validate",
                 result=result,
-                message="",
+                message=message,
                 data=data,
             )
 
