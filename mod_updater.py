@@ -57,7 +57,7 @@ class ModUpdater:
     server.
     """
 
-    MOD_VERSION_PATTERN = "\d+[.]\d+[.]\d+"
+    MOD_VERSION_PATTERN = r"\d+[.]\d+[.]\d+"
     MOD_FILE_PATTERN = "^(.*)_({version})[.]zip$".format(version=MOD_VERSION_PATTERN)
 
     class Mode(Enum):
@@ -108,16 +108,14 @@ class ModUpdater:
 
         # Ensure username and token were specified
         if self.username is None or self.username == "":
-            errmsg = (
+            errmsg = \
                 "error: username not specified in server-settings.json, player-data.json, or cli!"
-            )
             print(errmsg, file=sys.stderr)
             sys.exit(1)
 
         if self.token is None or self.token == "":
-            errmsg = (
+            errmsg = \
                 "error: token not specified in server-settings.json, player-data.json, or cli!"
-            )
             print(errmsg, file=sys.stderr)
             sys.exit(1)
 
@@ -269,7 +267,7 @@ class ModUpdater:
             data["dependencies"] = {}
             dependencies = data["latest"]["info_json"]["dependencies"]
             # Preparation for future explicit version matching
-            dep_pattern = re.compile("^([\w -]+) ([<=>][=])? (\d+[.]\d+[.]\d+)$")
+            dep_pattern = re.compile(r"^([\w -]+) ([<=>][=])? (\d+[.]\d+[.]\d+)$")
             for dep_entry in dependencies:
                 match = dep_pattern.fullmatch(dep_entry)
                 if match:
@@ -568,7 +566,7 @@ class ModUpdater:
                 message = "Updating from '{v_cur}'".format(v_cur=v_cur)
                 download = True
         else:
-            message = "Downloading initial release".format(version=v_new)
+            message = "Downloading initial release '{v_new}'".format(v_new=v_new)
             download = True
 
         if validate:
@@ -601,9 +599,8 @@ class ModUpdater:
                         result = "Failure"
                         message = "Download did not match checksum!"
                 elif req.status_code == 403:
-                    message = (
+                    message = \
                         "Failed to download, credentials not accepted. Check your username/token"
-                    )
                     result = "Failure"
                 else:
                     message = "Unable to retrieve, status code: " + str(req.status_code)
