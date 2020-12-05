@@ -50,6 +50,14 @@ Here's a brief example of executing the command:
   --fact-path /opt/factorio/bin/x64/factorio --update
 ```
 
+## Contributing
+
+A few notes about the code:
+
+* This script is designed to work with Python 3. Although there will be effort to avoid needlessly bumping the required version of Python 3, changes to make the script work on end-of-life versions of Python 3 are not supported.
+* To ensure consistency in the code, format with `black` before submitting pull requests. You can install black with `pip install black` and then run `black mod_updater.py` in the repo to autoformat.
+* On a best-effort basis, the script should pass all lints on `flake8` and `pylint`. You can also install these via pip and can run them with `flake8 mod_updater.py` and `pylint mod_updater.py` respectively.
+
 ## See Also
 
 * [Ruby Factorio Mod Updater](https://github.com/astevens/factorio-mod-updater)
