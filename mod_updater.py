@@ -46,8 +46,10 @@ def _validate_hash(checksum: str, target: str, bsize: int = 65536) -> bool:
 
 def _version_match(installed: str, mod: str):
     """Checks if factorio versions are compatible."""
-    if installed == "1.0" and mod == "0.18":
+    if installed.startswith("1.") and mod == "0.18":
         return True
+    if installed.startswith("1.") and mod.startswith("1."):
+        return int(installed[2:]) >= int(mod[2:])
     return installed == mod
 
 
@@ -119,14 +121,18 @@ class ModUpdater:
 
         # Ensure username and token were specified
         if self.username is None or self.username == "":
-            errmsg = \
-                "error: username not specified in server-settings.json, player-data.json, or cli!"
+            errmsg = (
+                "error: username not specified in "
+                + "server-settings.json, player-data.json, or cli!"
+            )
             print(errmsg, file=sys.stderr)
             sys.exit(1)
 
         if self.token is None or self.token == "":
-            errmsg = \
-                "error: token not specified in server-settings.json, player-data.json, or cli!"
+            errmsg = (
+                "error: token not specified in "
+                + "server-settings.json, player-data.json, or cli!"
+            )
             print(errmsg, file=sys.stderr)
             sys.exit(1)
 
@@ -178,7 +184,8 @@ class ModUpdater:
             "Factorio Release: {release}\n".format(release=self.fact_version["release"])
         )
 
-    def _parse_settings(self, config_path: str):
+    @staticmethod
+    def _parse_settings(config_path: str):
         """Process the specified server-settings.json or player-data.json file."""
         try:
             with open(config_path, "r") as config_fp:
@@ -296,7 +303,7 @@ class ModUpdater:
                     dep["version"] = match.group(3)
                     data["dependencies"][match.group(1)] = dep
 
-            for dep_name, dep_data in data["dependencies"].items():
+            for dep_name in data["dependencies"].keys():
                 if dep_name not in self.mods:
                     data["missing_deps"].append(dep_name)
 
@@ -320,7 +327,7 @@ class ModUpdater:
                     ),
                     file=sys.stderr,
                 )
-                exit(1)
+                sys.exit(1)
 
             # Remove the 'base' mod as it's not relevant to this process
             if "base" in self.mods:
@@ -489,7 +496,7 @@ class ModUpdater:
                     data=data,
                 )
                 continue
-            elif "latest" not in data:
+            if "latest" not in data:
                 message = (
                     "No release found for factorio '{version}', skipping update!"
                 ).format(version=self.fact_version["release"])
@@ -617,8 +624,10 @@ class ModUpdater:
                         result = "Failure"
                         message = "Download did not match checksum!"
                 elif req.status_code == 403:
-                    message = \
-                        "Failed to download, credentials not accepted. Check your username/token"
+                    message = (
+                        "Failed to download, credentials not accepted. "
+                        + "Check your username/token"
+                    )
                     result = "Failure"
                 else:
                     message = "Unable to retrieve, status code: " + str(req.status_code)
@@ -665,7 +674,10 @@ if __name__ == "__main__":
         "--server-settings",
         dest="settings_path",
         required=False,
-        help="Absolute path to the server-settings.json file (overrides player-data.json)",
+        help=(
+            "Absolute path to the server-settings.json file "
+            + "(overrides player-data.json)"
+        ),
     )
     # Player Data
     PARSER.add_argument(
