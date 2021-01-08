@@ -48,8 +48,6 @@ def _version_match(installed: str, mod: str):
     """Checks if factorio versions are compatible."""
     if installed.startswith("1.") and mod == "0.18":
         return True
-    if installed.startswith("1.") and mod.startswith("1."):
-        return int(installed[2:]) >= int(mod[2:])
     return installed == mod
 
 
