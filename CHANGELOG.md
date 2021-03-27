@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.4](https://github.com/pdemonaco/factorio-mod-updater/tree/HEAD)
+
+[Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.3...HEAD)
+
+**Closed issues:**
+
+- username & password in server-settings.json CPU 100% no server start [\#21](https://github.com/pdemonaco/factorio-mod-updater/issues/21)
+- auto-enumeration not supported in older versions of python3 [\#19](https://github.com/pdemonaco/factorio-mod-updater/issues/19)
+
+**Merged pull requests:**
+
+- 1.1 and 1.0 aren't compatible. [\#23](https://github.com/pdemonaco/factorio-mod-updater/pull/23) ([clarfonthey](https://github.com/clarfonthey))
+- Formatting, player-data.json support, show deprecated mods [\#22](https://github.com/pdemonaco/factorio-mod-updater/pull/22) ([clarfonthey](https://github.com/clarfonthey))
+
 ## [0.2.3](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.3) (2020-09-05)
 
 [Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.2...0.2.3)
