@@ -45,12 +45,15 @@ def _validate_hash(checksum: str, target: str, bsize: int = 65536) -> bool:
 
 
 def _version_match(installed: str, mod: str):
+    version_regex = re.compile("(?P<major>\\d+)\\.(?P<minor>\\d+)(?:.(?P<sub>\\d+))?")
+    mod_groups = version_regex.search(mod).groupdict()
+    intalled_groups = version_regex.search(installed).groupdict()
     """Checks if factorio versions are compatible."""
-    if installed.startswith("1.") and mod == "0.18":
+    if installed.startswith("1.") and mod.startswith("0.18"):
         return True
-    if mod.count(".") == 2:
-        return installed == mod
-    return ".".join(installed.split(".", 2)[:2]) == mod
+    if "sub" in mod_groups:
+        return installed_groups == mod_groups
+    return installed_groups["major"] == mod_groups["major"] and installed_groups["minor"] == mod_groups["minor"]
 
 
 class ModUpdater:
