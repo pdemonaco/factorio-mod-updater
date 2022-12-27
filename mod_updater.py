@@ -294,16 +294,16 @@ class ModUpdater:
             data["dependencies"] = {}
             dependencies = data["latest"]["info_json"]["dependencies"]
             # Preparation for future explicit version matching
-            dep_pattern = re.compile(r"^([\w -]+) ([<=>][=])? (\d+[.]\d+[.]\d+)$")
+            dep_pattern = re.compile(r"^(?:~ )?(?P<name>[\w -]+)(?: (?P<arg>(?:[<>]=?)|=) (?P<version>\d+[.]\d+[.]\d+))?$")
             for dep_entry in dependencies:
                 match = dep_pattern.fullmatch(dep_entry)
                 if match:
                     dep = {}
-                    dep_name = match.group(1)
+                    dep_name = match.group("name")
                     if dep_name == "base":
                         continue
-                    dep["argument"] = match.group(2)
-                    dep["version"] = match.group(3)
+                    dep["argument"] = match.group("arg")
+                    dep["version"] = match.group("version")
                     data["dependencies"][match.group(1)] = dep
 
             for dep_name in data["dependencies"].keys():
