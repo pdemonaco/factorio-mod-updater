@@ -48,7 +48,9 @@ def _version_match(installed: str, mod: str):
     """Checks if factorio versions are compatible."""
     if installed.startswith("1.") and mod == "0.18":
         return True
-    return installed == mod
+    if mod.count(".") == 2:
+        return installed == mod
+    return ".".join(installed.split(".", 2)[:2]) == mod
 
 
 class ModUpdater:
