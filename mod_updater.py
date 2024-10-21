@@ -45,10 +45,20 @@ def _validate_hash(checksum: str, target: str, bsize: int = 65536) -> bool:
 
 
 def _version_match(installed: str, mod: str):
-    """Checks if factorio versions are compatible."""
-    if installed.startswith("1.") and mod == "0.18":
+    """
+    Checks if factorio versions are compatible.
+    """
+    version_regex = re.compile("(?P<major>\\d+)\\.(?P<minor>\\d+)(?:.(?P<sub>\\d+))?")
+    mod_groups = version_regex.search(mod).groupdict()
+    installed_groups = version_regex.search(installed).groupdict()
+    if installed.startswith("1.") and mod.startswith("0.18"):
         return True
-    return installed == mod
+    if "sub" in mod_groups:
+        return installed_groups == mod_groups
+    return (
+        installed_groups["major"] == mod_groups["major"]
+        and installed_groups["minor"] == mod_groups["minor"]
+    )
 
 
 class ModUpdater:
@@ -289,16 +299,19 @@ class ModUpdater:
             data["dependencies"] = {}
             dependencies = data["latest"]["info_json"]["dependencies"]
             # Preparation for future explicit version matching
-            dep_pattern = re.compile(r"^([\w -]+) ([<=>][=])? (\d+[.]\d+[.]\d+)$")
+            dep_pattern = re.compile(
+                r"^(?:~ )?(?P<name>[\w -]+)(?: (?P<arg>(?:[<>]=?)|=) \
+                        (?P<ver>\d+[.]\d+[.]\d+))?$"
+            )
             for dep_entry in dependencies:
                 match = dep_pattern.fullmatch(dep_entry)
                 if match:
                     dep = {}
-                    dep_name = match.group(1)
+                    dep_name = match.group("name")
                     if dep_name == "base":
                         continue
-                    dep["argument"] = match.group(2)
-                    dep["version"] = match.group(3)
+                    dep["argument"] = match.group("arg")
+                    dep["version"] = match.group("ver")
                     data["dependencies"][match.group(1)] = dep
 
             for dep_name in data["dependencies"].keys():
