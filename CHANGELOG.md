@@ -1,8 +1,16 @@
 # Changelog
 
-## [0.2.4](https://github.com/pdemonaco/factorio-mod-updater/tree/HEAD)
+## [0.2.5](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.5) (2024-10-21)
 
-[Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.3...HEAD)
+[Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.4...0.2.5)
+
+**Closed issues:**
+
+- Dependency Resolution Fails [\#25](https://github.com/pdemonaco/factorio-mod-updater/issues/25)
+
+## [0.2.4](https://github.com/pdemonaco/factorio-mod-updater/tree/0.2.4) (2021-03-27)
+
+[Full Changelog](https://github.com/pdemonaco/factorio-mod-updater/compare/0.2.3...0.2.4)
 
 **Closed issues:**
 
