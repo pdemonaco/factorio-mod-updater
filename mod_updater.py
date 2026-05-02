@@ -8,7 +8,7 @@ directly as a python script.
 """
 import argparse
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum, auto
 import glob
 import hashlib
@@ -95,7 +95,7 @@ class ModUpdater:
         """
         self.mod_server_url = "https://mods.factorio.com"
         self.mod_path = mod_path
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
         self.title_mode = title_mode
 
         # Get the credentials to download mods
